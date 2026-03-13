@@ -2,11 +2,13 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { openDatabaseSync } from 'expo-sqlite'; // 🔥 1. IMPORTAMOS EL MOTOR SQLITE
+import { openDatabaseSync } from 'expo-sqlite';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+// 🔥 1. IMPORTAMOS EL INYECTOR DE LA BASE DE DATOS
+import { setupDatabase } from '../src/db/setup';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -31,17 +33,17 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
-  // 🔥 2. INICIALIZAMOS LA BASE DE DATOS DE FLEXI
+  // 🔥 2. INICIALIZAMOS LA BASE DE DATOS Y CARGAMOS CLOUDINARY
   useEffect(() => {
     const setupDB = () => {
       try {
-        // Abre (o crea si no existe) el archivo físico en el almacenamiento de la tablet
         const db = openDatabaseSync('flexi_v1.db');
-        
-        // Activamos las claves foráneas (necesario para relacionar Reels con Prendas)
         db.execSync('PRAGMA foreign_keys = ON;');
         
-        console.log("💾 Database: Motor SQLite local iniciado correctamente");
+        // Ejecutamos la inyección de tablas y prendas
+        setupDatabase(db);
+        
+        console.log("💾 Database: Motor SQLite local iniciado y datos inyectados");
       } catch (e) {
         console.error("❌ Error al arrancar la base de datos:", e);
       }
@@ -57,13 +59,12 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  if (!loaded) {
-    return null;
-  }
+  if (!loaded) return null;
 
   return <RootLayoutNav />;
 }
 
+// 🔥 3. EL COMPONENTE DE NAVEGACIÓN (Lo que faltaba)
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 

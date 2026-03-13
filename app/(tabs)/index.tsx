@@ -1,107 +1,163 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import MaskedView from '@react-native-masked-view/masked-view';
+import { LinearGradient } from 'expo-linear-gradient';
+import { openDatabaseSync } from 'expo-sqlite';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const categories = ["Todos", "Oversized", "Streetwear", "Zapatillas", "Accesorios"];
-const products = [
-  { id: '1', name: 'Polo Oversized Black', price: '89.00', imageUrl: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f' },
-  { id: '2', name: 'Pantalón Cargo', price: '120.00', imageUrl: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f' }
-];
+const { width } = Dimensions.get('window');
 
-export default function MarketplaceScreen() {
-  const [selectedCategory, setSelectedCategory] = useState("Todos");
+const COLORS = {
+  bg: '#101010',          
+  surface: '#181818',     
+  border: '#333333',
+  // 🔥 EL FIX: Le aseguramos a TypeScript que siempre habrá 3 colores
+  gradient: ['#00E5FF', '#2979FF', '#AA00FF'] as [string, string, string],
+  text: '#FFFFFF',
+  textMuted: '#AAAAAA',
+};
+
+const SIZES = ['S', 'M', 'L', 'XL'];
+
+const GradientText = (props: any) => (
+  <MaskedView maskElement={<Text {...props} />}>
+    <LinearGradient colors={COLORS.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <Text {...props} style={[props.style, { opacity: 0 }]} />
+    </LinearGradient>
+  </MaskedView>
+);
+
+interface Product {
+  id: number;
+  name: string;
+  image_url: string;
+  price: number;
+  description: string;
+}
+
+export default function ShopProductDetailScreen() {
+  const [product, setProduct] = useState<Product | null>(null);
+  const [selectedSize, setSelectedSize] = useState('M');
+
+  useEffect(() => {
+    try {
+      const db = openDatabaseSync('flexi_v1.db');
+      const data = db.getAllSync('SELECT * FROM garments WHERE id = 1 LIMIT 1');
+      
+      if (data.length > 0) {
+        const dbProduct = data[0] as any;
+        setProduct({
+          id: dbProduct.id,
+          name: 'Flexi-Manga T-Shirt',
+          image_url: dbProduct.image_url,
+          price: 120.00,
+          description: 'A contemporary take on a street style staple. A dropped shoulder with a cropped body, the Flexi-Manga T-Shirt is finished with a ribbed mock neck and signature 3D print branding.'
+        });
+      }
+    } catch (error) {
+      console.error("Error leyendo product detail:", error);
+    }
+  }, []);
+
+  if (!product) return <View style={styles.loading}><Text style={styles.loadingText}>Cargando...</Text></View>;
 
   return (
-    <ScrollView style={styles.container}>
-      {/* HEADER */}
+    <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <Image source="https://i.pravatar.cc/150?img=12" style={styles.avatar} />
-          <View>
-            <Text style={styles.welcome}>Bienvenido de nuevo,</Text>
-            <Text style={styles.username}>Cristopher Jans</Text>
-          </View>
-        </View>
-        <TouchableOpacity>
-          <Ionicons name="notifications-outline" size={24} color="black" />
-        </TouchableOpacity>
-      </View>
-
-      {/* SEARCH SECTION */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="gray" />
-          <TextInput placeholder="Buscar prendas..." style={styles.searchInput} />
-        </View>
-        <TouchableOpacity style={styles.filterBtn}>
-          <Ionicons name="options-outline" size={20} color="white" />
-        </TouchableOpacity>
-      </View>
-
-      {/* PROMO BANNER */}
-      <View style={styles.promoBanner}>
-        <View>
-          <Text style={styles.tag}>NUEVA COLECCIÓN</Text>
-          <Text style={styles.promoTitle}>Oferta de Verano</Text>
-          <Text style={styles.promoDesc}>Descuentos del 50%</Text>
-        </View>
-      </View>
-
-      {/* CATEGORIES */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-        {categories.map((cat) => (
-          <TouchableOpacity 
-            key={cat} 
-            style={[styles.categoryPill, cat === selectedCategory && styles.activePill]}
-            onPress={() => setSelectedCategory(cat)}
-          >
-            <Text style={[styles.categoryText, cat === selectedCategory && styles.activeText]}>{cat}</Text>
+        <Ionicons name="menu" size={26} color={COLORS.text} />
+        <Text style={styles.logoText}>FLEXI<Text style={styles.logoSlash}> / SHOP</Text></Text>
+        <View style={styles.headerRightIcons}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <Ionicons name="search" size={20} color={COLORS.text} />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* PRODUCT GRID */}
-      <Text style={styles.sectionTitle}>Populares</Text>
-      <View style={styles.productGrid}>
-        {products.map((p) => (
-          <View key={p.id} style={styles.productCard}>
-            <Image source={p.imageUrl} style={styles.productImage} />
-            <Text style={styles.productName}>{p.name}</Text>
-            <Text style={styles.productPrice}>S/ {p.price}</Text>
-          </View>
-        ))}
+          <TouchableOpacity style={styles.iconBtn}>
+            <Ionicons name="cart" size={20} color={COLORS.text} />
+            <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>2</Text></View>
+          </TouchableOpacity>
+        </View>
       </View>
-    </ScrollView>
-  );
 
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        <View style={styles.productImageContainer}>
+          <Image source={{ uri: product.image_url }} style={styles.productImage} resizeMode="cover" />
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.imageOverlay} />
+        </View>
+
+        <View style={styles.productDetails}>
+          <GradientText style={styles.productName}>{product.name}</GradientText>
+          
+          <View style={styles.priceRow}>
+            <Text style={styles.priceCurrency}>S/ </Text>
+            <GradientText style={styles.productPrice}>{product.price.toFixed(2)}</GradientText>
+          </View>
+
+          <Text style={styles.descriptionLabel}>DESCRIPTION</Text>
+          <Text style={styles.descriptionText}>{product.description}</Text>
+          
+          <Text style={styles.sizesLabel}>SIZES</Text>
+          <View style={styles.sizesRow}>
+            {SIZES.map((size) => (
+              <TouchableOpacity 
+                key={size} 
+                style={[styles.sizeOption, selectedSize === size && styles.selectedSizeOption]}
+                onPress={() => setSelectedSize(size)}
+              >
+                {selectedSize === size ? (
+                  <LinearGradient colors={COLORS.gradient} style={styles.selectedSizeGradientBorder}>
+                    <Text style={styles.selectedSizeText}>{size}</Text>
+                  </LinearGradient>
+                ) : (
+                  <Text style={styles.sizeText}>{size}</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity style={styles.addToCartButton}>
+            <LinearGradient colors={COLORS.gradient} style={styles.addToCartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+              <Ionicons name="cart-outline" size={22} color="#FFF" style={{marginRight: 10}} />
+              <Text style={styles.addToCartText}>AÑADIR AL CARRITO</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20, paddingTop: 50 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  userInfo: { flexDirection: 'row', alignItems: 'center' },
-  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
-  welcome: { fontSize: 12, color: 'gray' },
-  username: { fontSize: 16, fontWeight: 'bold' },
-  searchSection: { flexDirection: 'row', marginBottom: 20 },
-  searchBar: { flex: 1, flexDirection: 'row', backgroundColor: '#f0f0f0', borderRadius: 10, padding: 10, alignItems: 'center' },
-  searchInput: { marginLeft: 10, flex: 1 },
-  filterBtn: { backgroundColor: 'black', padding: 10, borderRadius: 10, marginLeft: 10, justifyContent: 'center' },
-  promoBanner: { backgroundColor: '#ffe4e1', padding: 20, borderRadius: 15, marginBottom: 20 },
-  tag: { fontSize: 10, fontWeight: 'bold', color: 'red' },
-  promoTitle: { fontSize: 20, fontWeight: 'bold', marginVertical: 5 },
-  promoDesc: { fontSize: 14 },
-  categoriesScroll: { marginBottom: 20 },
-  categoryPill: { paddingHorizontal: 15, paddingVertical: 8, backgroundColor: '#f0f0f0', borderRadius: 20, marginRight: 10 },
-  activePill: { backgroundColor: 'black' },
-  categoryText: { color: 'black' },
-  activeText: { color: 'white' },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  productGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingBottom: 40 },
-  productCard: { width: '48%', backgroundColor: '#f9f9f9', borderRadius: 10, padding: 10, marginBottom: 15 },
-  productImage: { width: '100%', height: 150, borderRadius: 10, marginBottom: 10 },
-  productName: { fontSize: 14, fontWeight: 'bold' },
-  productPrice: { fontSize: 14, color: 'gray', marginTop: 5 }
+  container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 60 },
+  loading: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { color: COLORS.textMuted },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 25 },
+  logoText: { color: COLORS.text, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
+  logoSlash: { color: COLORS.textMuted },
+  headerRightIcons: { flexDirection: 'row', gap: 15 },
+  iconBtn: { width: 40, height: 40, backgroundColor: COLORS.surface, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, position: 'relative' },
+  cartBadge: { position: 'absolute', top: -3, right: -3, backgroundColor: '#00E5FF', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+  cartBadgeText: { color: COLORS.bg, fontSize: 10, fontWeight: 'bold' },
+  productImageContainer: { width: width * 0.9, height: 350, alignSelf: 'center', borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border, position: 'relative', marginBottom: 20 },
+  productImage: { width: '100%', height: '100%' },
+  imageOverlay: { ...StyleSheet.absoluteFillObject },
+  productDetails: { paddingHorizontal: width * 0.05 },
+  productName: { fontSize: 24, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 20 },
+  priceCurrency: { color: '#00E5FF', fontSize: 16, fontWeight: 'bold' },
+  productPrice: { fontSize: 28, fontWeight: '900' },
+  descriptionLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 8 },
+  descriptionText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20, marginBottom: 25 },
+  sizesLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12 },
+  sizesRow: { flexDirection: 'row', gap: 15, marginBottom: 35 },
+  sizeOption: { width: 45, height: 45, borderRadius: 10, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
+
+  selectedSizeOption: { borderWidth: 0, backgroundColor: 'transparent' },
+  sizeText: { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
+  selectedSizeGradientBorder: { width: 45, height: 45, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  selectedSizeText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+  addToCartButton: { width: '100%', height: 60, borderRadius: 30, overflow: 'hidden' },
+  addToCartGradient: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  addToCartText: { color: '#FFF', fontSize: 16, fontWeight: '900', letterSpacing: 2 },
+
+
   
 });
