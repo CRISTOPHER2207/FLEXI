@@ -1,23 +1,61 @@
 import { Ionicons } from '@expo/vector-icons';
 import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
-import { openDatabaseSync } from 'expo-sqlite';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
+// 🎨 PALETA FLEXI: Turquesa -> Azul -> Violeta
 const COLORS = {
   bg: '#101010',          
   surface: '#181818',     
-  border: '#333333',
-  // 🔥 EL FIX: Le aseguramos a TypeScript que siempre habrá 3 colores
+  border: '#252525',
   gradient: ['#00E5FF', '#2979FF', '#AA00FF'] as [string, string, string],
   text: '#FFFFFF',
   textMuted: '#AAAAAA',
+  accent: '#00E5FF',
 };
 
-const SIZES = ['S', 'M', 'L', 'XL'];
+// Datos de muestra con estética Streetwear / Oversized
+const STORIES = [
+  { id: 1, name: 'Tu historia', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=400&q=80', isUser: true },
+  { id: 2, name: 'Flexi Drops', image: 'https://images.unsplash.com/photo-1523398002811-999aa8e9f5b9?w=400&q=80' },
+  { id: 3, name: 'Streetwear', image: 'https://images.unsplash.com/photo-1550614000-4b95d466f25b?w=400&q=80' },
+  { id: 4, name: 'New Fit', image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=400&q=80' },
+  { id: 5, name: 'Oversized', image: 'https://images.unsplash.com/photo-1434389678240-61d06e232924?w=400&q=80' },
+  { id: 6, name: 'Urban', image: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=400&q=80' },
+];
+
+const POSTS = [
+  {
+    id: 1,
+    user: 'flexi_official',
+    avatar: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=100&q=80',
+    image: 'https://images.unsplash.com/photo-1516826957135-700ede19c6ce?w=800&q=80',
+    likes: '1,240',
+    caption: 'La nueva colección oversized ya está disponible. Drop limitado. 🚀',
+    price: 120.00
+  },
+  {
+    id: 2,
+    user: 'street_hype',
+    avatar: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?w=100&q=80',
+    image: 'https://images.unsplash.com/photo-1550614000-4b95d466f25b?w=800&q=80',
+    likes: '890',
+    caption: 'Vibras urbanas para el fin de semana. Combina la T-Shirt con los nuevos cargo. 🧊',
+    price: 95.00
+  },
+  {
+    id: 3,
+    user: 'urban_fits',
+    avatar: 'https://images.unsplash.com/photo-1434389678240-61d06e232924?w=100&q=80',
+    image: 'https://images.unsplash.com/photo-1523398002811-999aa8e9f5b9?w=800&q=80',
+    likes: '3,450',
+    caption: 'Detalles 3D y corte premium. Elevando los básicos. 🔥',
+    price: 150.00
+  }
+];
 
 const GradientText = (props: any) => (
   <MaskedView maskElement={<Text {...props} />}>
@@ -27,137 +65,116 @@ const GradientText = (props: any) => (
   </MaskedView>
 );
 
-interface Product {
-  id: number;
-  name: string;
-  image_url: string;
-  price: number;
-  description: string;
-}
-
 export default function ShopProductDetailScreen() {
-  const [product, setProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState('M');
-
-  useEffect(() => {
-    try {
-      const db = openDatabaseSync('flexi_v1.db');
-      const data = db.getAllSync('SELECT * FROM garments WHERE id = 1 LIMIT 1');
-      
-      if (data.length > 0) {
-        const dbProduct = data[0] as any;
-        setProduct({
-          id: dbProduct.id,
-          name: 'Flexi-Manga T-Shirt',
-          image_url: dbProduct.image_url,
-          price: 120.00,
-          description: 'A contemporary take on a street style staple. A dropped shoulder with a cropped body, the Flexi-Manga T-Shirt is finished with a ribbed mock neck and signature 3D print branding.'
-        });
-      }
-    } catch (error) {
-      console.error("Error leyendo product detail:", error);
-    }
-  }, []);
-
-  if (!product) return <View style={styles.loading}><Text style={styles.loadingText}>Cargando...</Text></View>;
-
   return (
     <View style={styles.container}>
+      {/* HEADER ESTILO INSTAGRAM */}
       <View style={styles.header}>
-        <Ionicons name="menu" size={26} color={COLORS.text} />
-        <Text style={styles.logoText}>FLEXI<Text style={styles.logoSlash}> / SHOP</Text></Text>
-        <View style={styles.headerRightIcons}>
+        <GradientText style={styles.logoText}>FLEXI</GradientText>
+        <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search" size={20} color={COLORS.text} />
+            <Ionicons name="heart-outline" size={26} color={COLORS.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="cart" size={20} color={COLORS.text} />
-            <View style={styles.cartBadge}><Text style={styles.cartBadgeText}>2</Text></View>
+            <Ionicons name="chatbubble-ellipses-outline" size={26} color={COLORS.text} />
+            <View style={[styles.badge, { backgroundColor: COLORS.accent }]} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={styles.productImageContainer}>
-          <Image source={{ uri: product.image_url }} style={styles.productImage} resizeMode="cover" />
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.imageOverlay} />
-        </View>
-
-        <View style={styles.productDetails}>
-          <GradientText style={styles.productName}>{product.name}</GradientText>
-          
-          <View style={styles.priceRow}>
-            <Text style={styles.priceCurrency}>S/ </Text>
-            <GradientText style={styles.productPrice}>{product.price.toFixed(2)}</GradientText>
-          </View>
-
-          <Text style={styles.descriptionLabel}>DESCRIPTION</Text>
-          <Text style={styles.descriptionText}>{product.description}</Text>
-          
-          <Text style={styles.sizesLabel}>SIZES</Text>
-          <View style={styles.sizesRow}>
-            {SIZES.map((size) => (
-              <TouchableOpacity 
-                key={size} 
-                style={[styles.sizeOption, selectedSize === size && styles.selectedSizeOption]}
-                onPress={() => setSelectedSize(size)}
-              >
-                {selectedSize === size ? (
-                  <LinearGradient colors={COLORS.gradient} style={styles.selectedSizeGradientBorder}>
-                    <Text style={styles.selectedSizeText}>{size}</Text>
-                  </LinearGradient>
-                ) : (
-                  <Text style={styles.sizeText}>{size}</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* SECCIÓN DE HISTORIAS */}
+        <View style={styles.storiesSection}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            contentContainerStyle={{ paddingHorizontal: 15, paddingRight: 30 }}
+          >
+            {STORIES.map((story) => (
+              <TouchableOpacity key={story.id} style={styles.storyWrapper} activeOpacity={0.8}>
+                <LinearGradient colors={COLORS.gradient} style={styles.storyGradient}>
+                  <View style={styles.storyImageInner}>
+                    <Image source={{ uri: story.image }} style={styles.storyImage} />
+                  </View>
+                </LinearGradient>
+                <Text style={styles.storyName} numberOfLines={1}>{story.name}</Text>
+                {story.isUser && (
+                  <View style={styles.addStoryBadge}>
+                    <Ionicons name="add" size={14} color="#FFF" />
+                  </View>
                 )}
               </TouchableOpacity>
             ))}
-          </View>
-
-          <TouchableOpacity style={styles.addToCartButton}>
-            <LinearGradient colors={COLORS.gradient} style={styles.addToCartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-              <Ionicons name="cart-outline" size={22} color="#FFF" style={{marginRight: 10}} />
-              <Text style={styles.addToCartText}>AÑADIR AL CARRITO</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          </ScrollView>
         </View>
+
+        {/* FEED DE PUBLICACIONES */}
+        {POSTS.map((post) => (
+          <View key={post.id} style={styles.postContainer}>
+            <View style={styles.postHeader}>
+              <Image source={{ uri: post.avatar }} style={styles.userAvatar} />
+              <Text style={styles.userName}>{post.user}</Text>
+              <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} style={{ marginLeft: 'auto' }} />
+            </View>
+
+            <View style={styles.imageContainer}>
+              <Image source={{ uri: post.image }} style={styles.mainImage} resizeMode="cover" />
+            </View>
+
+            <View style={styles.postActions}>
+              <View style={styles.leftActions}>
+                <Ionicons name="heart-outline" size={28} color={COLORS.text} />
+                <Ionicons name="chatbubble-outline" size={26} color={COLORS.text} />
+                <Ionicons name="paper-plane-outline" size={26} color={COLORS.text} />
+              </View>
+              <Ionicons name="bookmark-outline" size={28} color={COLORS.text} />
+            </View>
+
+            <View style={styles.postInfo}>
+              <Text style={styles.likesText}>{post.likes} Me gusta</Text>
+              <Text style={styles.caption}>
+                <Text style={styles.userName}>{post.user} </Text> 
+                {post.caption}
+              </Text>
+              <TouchableOpacity style={styles.shopButton}>
+                <Ionicons name="cart-outline" size={16} color={COLORS.bg} />
+                <Text style={styles.shopButtonText}>Comprar por S/ {post.price.toFixed(2)}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 60 },
-  loading: { flex: 1, backgroundColor: COLORS.bg, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: COLORS.textMuted },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 25 },
-  logoText: { color: COLORS.text, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
-  logoSlash: { color: COLORS.textMuted },
-  headerRightIcons: { flexDirection: 'row', gap: 15 },
-  iconBtn: { width: 40, height: 40, backgroundColor: COLORS.surface, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, position: 'relative' },
-  cartBadge: { position: 'absolute', top: -3, right: -3, backgroundColor: '#00E5FF', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  cartBadgeText: { color: COLORS.bg, fontSize: 10, fontWeight: 'bold' },
-  productImageContainer: { width: width * 0.9, height: 350, alignSelf: 'center', borderRadius: 25, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border, position: 'relative', marginBottom: 20 },
-  productImage: { width: '100%', height: '100%' },
-  imageOverlay: { ...StyleSheet.absoluteFillObject },
-  productDetails: { paddingHorizontal: width * 0.05 },
-  productName: { fontSize: 24, fontWeight: '900', letterSpacing: 1, marginBottom: 10 },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 20 },
-  priceCurrency: { color: '#00E5FF', fontSize: 16, fontWeight: 'bold' },
-  productPrice: { fontSize: 28, fontWeight: '900' },
-  descriptionLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 8 },
-  descriptionText: { color: 'rgba(255,255,255,0.7)', fontSize: 13, lineHeight: 20, marginBottom: 25 },
-  sizesLabel: { color: COLORS.textMuted, fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 12 },
-  sizesRow: { flexDirection: 'row', gap: 15, marginBottom: 35 },
-  sizeOption: { width: 45, height: 45, borderRadius: 10, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
-
-  selectedSizeOption: { borderWidth: 0, backgroundColor: 'transparent' },
-  sizeText: { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
-  selectedSizeGradientBorder: { width: 45, height: 45, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  selectedSizeText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
-  addToCartButton: { width: '100%', height: 60, borderRadius: 30, overflow: 'hidden' },
-  addToCartGradient: { flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  addToCartText: { color: '#FFF', fontSize: 16, fontWeight: '900', letterSpacing: 2 },
-
-
+  container: { flex: 1, backgroundColor: COLORS.bg, paddingTop: 50 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, height: 55 },
+  logoText: { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
+  headerIcons: { flexDirection: 'row', gap: 20 },
+  iconBtn: { position: 'relative' },
+  badge: { position: 'absolute', top: -2, right: -4, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: COLORS.bg },
   
+  storiesSection: { paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: COLORS.border },
+  storyWrapper: { alignItems: 'center', marginRight: 18, width: 75, position: 'relative' },
+  storyGradient: { width: 74, height: 74, borderRadius: 37, padding: 2.5, justifyContent: 'center', alignItems: 'center' },
+  storyImageInner: { width: '100%', height: '100%', borderRadius: 35, backgroundColor: COLORS.bg, padding: 3 },
+  storyImage: { width: '100%', height: '100%', borderRadius: 32 },
+  storyName: { color: COLORS.text, fontSize: 11, marginTop: 6, fontWeight: '500' },
+  addStoryBadge: { position: 'absolute', bottom: 20, right: 0, backgroundColor: COLORS.accent, borderRadius: 12, borderWidth: 2, borderColor: COLORS.bg, width: 22, height: 22, justifyContent: 'center', alignItems: 'center' },
+
+  postContainer: { marginBottom: 20, borderBottomWidth: 0.5, borderBottomColor: COLORS.border, paddingBottom: 15 },
+  postHeader: { flexDirection: 'row', alignItems: 'center', padding: 12 },
+  userAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10, borderWidth: 1, borderColor: COLORS.border },
+  userName: { color: COLORS.text, fontWeight: 'bold', fontSize: 14 },
+  imageContainer: { width: width, height: width * 1.1 }, // Proporción 4:5 estilo Instagram
+  mainImage: { width: '100%', height: '100%' },
+  postActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 15, paddingVertical: 12 },
+  leftActions: { flexDirection: 'row', gap: 18, alignItems: 'center' },
+  postInfo: { paddingHorizontal: 15 },
+  likesText: { color: COLORS.text, fontWeight: 'bold', marginBottom: 5, fontSize: 14 },
+  caption: { color: COLORS.text, lineHeight: 20, fontSize: 14 },
+  shopButton: { flexDirection: 'row', backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, alignSelf: 'flex-start', marginTop: 12, alignItems: 'center', gap: 5 },
+  shopButtonText: { color: COLORS.bg, fontWeight: 'bold', fontSize: 13 },
 });

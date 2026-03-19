@@ -1,15 +1,37 @@
 import { Ionicons } from '@expo/vector-icons';
+import MaskedView from '@react-native-masked-view/masked-view';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient'; // 🔥 Nuevo
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { height, width } = Dimensions.get('window');
 
+// 🎨 NUEVA PALETA DE COLORES FLEXI
+const COLORS = {
+  bg: '#101010',
+  surface: '#181818',
+  border: '#252525',
+  gradient: ['#00E5FF', '#2979FF', '#AA00FF'] as [string, string, string],
+  text: '#FFFFFF',
+  textMuted: '#AAAAAA',
+  accent: '#00E5FF',
+};
+
 // ==========================================
-// ⚙️ CONFIGURACIÓN DE IA
+// ⚙️ CONFIGURACIÓN DE IA (INTACTA)
 // ==========================================
 const REPLICATE_API_TOKEN = "r8_Vibg5t9zbbjtyflEgWkOo3KYKSeaW7S2AMMOc"; 
+
+// Componente para Texto con Gradiente
+const GradientText = (props: any) => (
+  <MaskedView maskElement={<Text {...props} />}>
+    <LinearGradient colors={COLORS.gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <Text {...props} style={[props.style, { opacity: 0 }]} />
+    </LinearGradient>
+  </MaskedView>
+);
 
 export default function OutfitCreatorScreen() {
   const router = useRouter();
@@ -22,7 +44,7 @@ export default function OutfitCreatorScreen() {
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // 1. ABRIR GALERÍA Y EXTRAER BASE64
+  // 1. ABRIR GALERÍA Y EXTRAER BASE64 (INTACTO)
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -39,10 +61,8 @@ export default function OutfitCreatorScreen() {
     }
   };
 
-  // 2. CONECTAR CON REPLICATE API DIRECTAMENTE
+  // 2. CONECTAR CON REPLICATE API DIRECTAMENTE (INTACTO)
   const handleGenerateTryOn = async () => {
-    
-    // 🔥 VALIDACIONES DE UX: Avisamos al usuario si falta algo
     if (!base64Photo) {
       Alert.alert("Falta tu foto", "Por favor, sube una foto tuya de cuerpo entero primero.");
       return;
@@ -60,8 +80,6 @@ export default function OutfitCreatorScreen() {
 
       console.log("Iniciando petición DIRECTA a Replicate...");
 
-      // 🔥 PRIMER FETCH: Sin corsproxy (Conexión nativa directa)
-      // 🔥 LA NUEVA ESTRUCTURA QUE ENCONTRASTE (Apunta al probador de ropa)
       const startResponse = await fetch("https://api.replicate.com/v1/predictions", {
         method: "POST",
         headers: {
@@ -69,22 +87,19 @@ export default function OutfitCreatorScreen() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // Este código larguísimo es la "llave" exacta del modelo IDM-VTON
           version: "c871bb9b046607b680449ecbae55fd8c6d945e0a1948644bf2361b3d021d3ff4", 
           input: {
             garm_img: garmentUrl,
             human_img: userImageBase64,
-            garment_des: "t-shirt", // Mejor poner t-shirt para polos
+            garment_des: "t-shirt", 
             category: "upper_body" 
           }
         })
       });
       const prediction = await startResponse.json();
       
-      // 🔥 NUEVO LOG PARA VER EL PORTAZO EXACTO DE REPLICATE
       console.log("Respuesta cruda de inicio:", prediction);
 
-      // Nueva validación a prueba de balas
       if (!prediction.urls) {
         Alert.alert(
           "Replicate rechazó la petición", 
@@ -94,19 +109,16 @@ export default function OutfitCreatorScreen() {
         return;
       }
 
-    
       const getPredictionUrl = prediction.urls.get;
       let isDone = false;
       let attempts = 0; 
 
       console.log("Petición aceptada, URL de consulta:", getPredictionUrl);
 
-      // Consultamos el estado cada 3 segundos, máximo 20 veces (1 minuto)
       while (!isDone && attempts < 20) {
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 3000)); 
 
-        // 🔥 SEGUNDO FETCH: Sin corsproxy (Conexión nativa directa)
         const statusResponse = await fetch(getPredictionUrl, {
           headers: {
             "Authorization": `Bearer ${REPLICATE_API_TOKEN}`,
@@ -118,7 +130,6 @@ export default function OutfitCreatorScreen() {
         
         console.log(`Intento ${attempts} - Respuesta de Replicate:`, statusData);
 
-        // Evaluamos la respuesta
         if (statusData.error || statusData.detail) {
           Alert.alert("Error de Autorización/API", statusData.error || statusData.detail);
           isDone = true;
@@ -145,16 +156,16 @@ export default function OutfitCreatorScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
       
-      {/* HEADER TIPO QUANTUMPULSE */}
+      {/* HEADER IA */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-          <Ionicons name="grid-outline" size={24} color="#FFF" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>FLEXI{'\n'}FASHION</Text>
+        <GradientText style={styles.headerTitle}>FLEXI AI</GradientText>
         <TouchableOpacity style={styles.iconBtn}>
-          <Ionicons name="search-outline" size={24} color="#FFF" />
+          <Ionicons name="sparkles-outline" size={24} color={COLORS.accent} />
         </TouchableOpacity>
       </View>
 
@@ -163,13 +174,13 @@ export default function OutfitCreatorScreen() {
         {/* FILTROS / CATEGORÍAS */}
         <View style={styles.filtersRow}>
            <TouchableOpacity style={styles.filterBtnActive}>
-             <Ionicons name="options-outline" size={20} color="#FFF" />
+             <Ionicons name="flash" size={16} color={COLORS.bg} />
+             <Text style={styles.filterTextActive}>STUDIO IA</Text>
            </TouchableOpacity>
-           <Text style={styles.filterTextActive}>NEW RELEASES</Text>
-           <Text style={styles.filterTextInactive}>MOST VIEWED</Text>
+           <Text style={styles.filterTextInactive}>HISTORIAL</Text>
         </View>
 
-        {/* ÁREA DE IMAGEN PRINCIPAL (Estilo Tarjeta Elevada) */}
+        {/* ÁREA DE IMAGEN PRINCIPAL (Estilo Glassmorphism/Neumorphism oscuro) */}
         <View style={styles.mainCardContainer}>
           <View style={styles.imageCard}>
             {generatedImage ? (
@@ -177,23 +188,24 @@ export default function OutfitCreatorScreen() {
             ) : userPhotoUri ? (
               <Image source={{ uri: userPhotoUri }} style={styles.heroImage} />
             ) : (
-              <TouchableOpacity style={styles.emptyUploadBox} onPress={pickImage}>
-                <Ionicons name="camera" size={40} color="#FF5722" style={{ marginBottom: 15 }} />
-                <Text style={styles.emptyUploadText}>UPLOAD PHOTO</Text>
-                <Text style={styles.emptyUploadSubText}>Full body, clear lighting</Text>
+              <TouchableOpacity style={styles.emptyUploadBox} onPress={pickImage} activeOpacity={0.7}>
+                <Ionicons name="scan-outline" size={50} color={COLORS.accent} style={{ marginBottom: 15 }} />
+                <Text style={styles.emptyUploadText}>SUBIR FOTO</Text>
+                <Text style={styles.emptyUploadSubText}>Cuerpo entero, buena iluminación</Text>
               </TouchableOpacity>
             )}
 
             {/* OVERLAY DE LA PRENDA */}
             {activeGarment && (
-              <View style={styles.garmentOverlay}>
+              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} style={styles.garmentOverlay}>
                 <Text style={styles.garmentOverlayTitle}>{activeGarment.name}</Text>
                 <Text style={styles.garmentOverlayPrice}>S/ {activeGarment.price}</Text>
-              </View>
+              </LinearGradient>
             )}
 
             {/* BADGE SUPERIOR IZQUIERDO */}
             <View style={styles.badgeOverlay}>
+              <Ionicons name="color-wand" size={12} color="#FFF" style={{marginRight: 4}}/>
                <Text style={styles.badgeText}>TRY-ON</Text>
             </View>
           </View>
@@ -201,8 +213,8 @@ export default function OutfitCreatorScreen() {
           {/* BOTÓN FLOTANTE PARA CAMBIAR FOTO SI YA HAY UNA */}
           {userPhotoUri && !generatedImage && (
             <TouchableOpacity style={styles.changePhotoBtn} onPress={pickImage}>
-              <Ionicons name="refresh-outline" size={18} color="#FFF" />
-              <Text style={styles.changePhotoText}>CHANGE PHOTO</Text>
+              <Ionicons name="camera-reverse-outline" size={18} color={COLORS.text} />
+              <Text style={styles.changePhotoText}>CAMBIAR FOTO</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -211,25 +223,40 @@ export default function OutfitCreatorScreen() {
         <View style={styles.footerControls}>
           {generatedImage ? (
             <TouchableOpacity 
-              style={styles.primaryBtn} 
+              style={styles.btnWrapper} 
               onPress={() => setGeneratedImage(null)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.primaryBtnText}>TRY ANOTHER ITEM</Text>
+              <LinearGradient colors={COLORS.gradient} style={styles.primaryBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                <Ionicons name="refresh" size={20} color="#FFF" style={{marginRight: 8}}/>
+                <Text style={styles.primaryBtnText}>PROBAR OTRA PRENDA</Text>
+              </LinearGradient>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity 
-              style={[styles.primaryBtn, (!userPhotoUri || isGenerating) && styles.disabledBtn]} 
+              style={[styles.btnWrapper, (!userPhotoUri || isGenerating) && styles.disabledBtnWrapper]} 
               onPress={handleGenerateTryOn}
               disabled={!userPhotoUri || isGenerating}
+              activeOpacity={0.8}
             >
-              {isGenerating ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color="#FFF" size="small" />
-                  <Text style={styles.loadingText}>PROCESSING FIT...</Text>
-                </View>
-              ) : (
-                <Text style={styles.primaryBtnText}>GENERATE OUTFIT</Text>
-              )}
+              <LinearGradient 
+                colors={(!userPhotoUri || isGenerating) ? [COLORS.surface, COLORS.surface] : COLORS.gradient} 
+                style={styles.primaryBtnGradient} 
+                start={{ x: 0, y: 0 }} 
+                end={{ x: 1, y: 0 }}
+              >
+                {isGenerating ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator color={COLORS.accent} size="small" />
+                    <Text style={[styles.loadingText, {color: COLORS.accent}]}>PROCESANDO MAGIA...</Text>
+                  </View>
+                ) : (
+                  <>
+                    <Ionicons name="flash" size={20} color={(!userPhotoUri) ? COLORS.textMuted : "#FFF"} style={{marginRight: 8}}/>
+                    <Text style={[styles.primaryBtnText, (!userPhotoUri) && {color: COLORS.textMuted}]}>GENERAR OUTFIT</Text>
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           )}
         </View>
@@ -239,34 +266,33 @@ export default function OutfitCreatorScreen() {
 }
 
 // ==========================================
-// ESTILOS: DARK MODE & ELEGANCIA TECNOLÓGICA
+// ESTILOS: ACTUALIZADO A LA TENDENCIA FLEXI
 // ==========================================
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#121212',
+    backgroundColor: COLORS.bg,
     paddingTop: 50, 
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
   iconBtn: {
-    padding: 8,
-    borderRadius: 12,
+    padding: 10,
+    borderRadius: 15,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: COLORS.border,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
     letterSpacing: 2,
-    color: '#FFF',
     textAlign: 'center',
-    lineHeight: 24,
   },
   filtersRow: {
     flexDirection: 'row',
@@ -275,22 +301,25 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   filterBtnActive: {
-    backgroundColor: '#2A2A2A',
-    padding: 10,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.accent,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 20,
     marginRight: 15,
   },
   filterTextActive: {
-    color: '#FF5722',
-    fontWeight: '800',
-    fontSize: 13,
+    color: COLORS.bg,
+    fontWeight: '900',
+    fontSize: 12,
     letterSpacing: 1,
-    marginRight: 15,
+    marginLeft: 6,
   },
   filterTextInactive: {
-    color: '#888',
+    color: COLORS.textMuted,
     fontWeight: '700',
-    fontSize: 13,
+    fontSize: 12,
     letterSpacing: 1,
   },
   scrollContent: {
@@ -303,12 +332,12 @@ const styles = StyleSheet.create({
   imageCard: {
     width: '100%',
     height: height * 0.55,
-    borderRadius: 32,
-    backgroundColor: '#1E1E1E',
+    borderRadius: 30,
+    backgroundColor: COLORS.surface,
     overflow: 'hidden',
     position: 'relative',
     borderWidth: 1,
-    borderColor: '#2A2A2A',
+    borderColor: COLORS.border,
   },
   heroImage: {
     width: '100%',
@@ -320,39 +349,48 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    borderWidth: 2,
+    borderColor: COLORS.border,
+    borderStyle: 'dashed',
+    borderRadius: 30,
+    margin: 5,
   },
   emptyUploadText: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 2,
-    color: '#FFF',
+    color: COLORS.text,
     marginBottom: 8,
   },
   emptyUploadSubText: {
     fontSize: 13,
-    color: '#888',
+    color: COLORS.textMuted,
     textAlign: 'center',
   },
   badgeOverlay: {
     position: 'absolute',
-    top: 20,
-    left: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    top: 15,
+    left: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 6,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 15,
   },
   badgeText: {
     color: '#FFF',
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 1,
   },
   garmentOverlay: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    paddingTop: 40,
   },
   garmentOverlayTitle: {
     color: '#FFF',
@@ -360,14 +398,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10,
   },
   garmentOverlayPrice: {
-    color: '#FF5722',
-    fontSize: 16,
-    fontWeight: '700',
+    color: COLORS.accent,
+    fontSize: 18,
+    fontWeight: '900',
     marginTop: 4,
   },
   changePhotoBtn: {
@@ -376,41 +411,46 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 25,
   },
   changePhotoText: {
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.5,
     marginLeft: 8,
-    color: '#FFF',
+    color: COLORS.text,
   },
   footerControls: {
     paddingHorizontal: 20,
     marginTop: 30,
   },
-  primaryBtn: {
-    backgroundColor: '#FF5722',
-    height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
+  btnWrapper: {
     width: '100%',
+    height: 65,
     borderRadius: 20,
-    shadowColor: '#FF5722',
+    overflow: 'hidden',
+    shadowColor: COLORS.accent,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  disabledBtn: {
-    backgroundColor: '#2A2A2A',
+  disabledBtnWrapper: {
     shadowOpacity: 0,
     elevation: 0,
   },
+  primaryBtnGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   primaryBtnText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     letterSpacing: 2,
   },
@@ -419,7 +459,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 2,

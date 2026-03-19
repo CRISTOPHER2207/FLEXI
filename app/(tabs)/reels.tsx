@@ -1,25 +1,50 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useIsFocused } from '@react-navigation/native'; // 🔥 1. IMPORTAMOS ESTO
+import { useIsFocused } from '@react-navigation/native';
 import { ResizeMode, Video } from 'expo-av';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { openDatabaseSync } from 'expo-sqlite';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 
-const { height, width } = Dimensions.get('window');
+const COLORS = {
+  bg: '#101010',
+  text: '#FFFFFF',
+  textMuted: '#AAAAAA',
+  accent: '#00E5FF',
+  gradient: ['#00E5FF', '#2979FF', '#AA00FF'] as [string, string, string],
+};
 
-// Altura ajustada
-const REEL_HEIGHT = height - 80; 
+const CLOUD_NAME = "deib2yim8"; 
+
+function generarReelAutomatico(reelId: string, description: string) {
+  const baseVideoUrl = `https://res.cloudinary.com/${CLOUD_NAME}/video/upload/v1/flexi/reels/${reelId}`;
+  const baseImageUrl = `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/v3/flexi/reels/${reelId}`;
+
+  const timestamp = Date.now();
+
+  return {
+    id: reelId,
+    video_url: `${baseVideoUrl}/video.mp4`,
+    description: description,
+    garments: [
+      { id: `${reelId}_gorro`, name: 'gorro', imageUrl: `${baseImageUrl}/gorro.png?t=${timestamp}`, price: '45.00' },
+      { id: `${reelId}_casaca`, name: 'casaca', imageUrl: `${baseImageUrl}/casaca.png?t=${timestamp}`, price: '180.00' },
+      { id: `${reelId}_pantalon`, name: 'pantalón', imageUrl: `${baseImageUrl}/pantalon.png?t=${timestamp}`, price: '120.00' },
+      { id: `${reelId}_zapatillas`, name: 'zapatillas', imageUrl: `${baseImageUrl}/zapatillas.png?t=${timestamp}`, price: '250.00' }
+    ]
+  };
+}
 
 export default function ReelsScreen() {
   const router = useRouter();
   const [reelsData, setReelsData] = useState<any[]>([]);
   
-  // 🔥 2. CONTROLADORES DE REPRODUCCIÓN
-  const isFocused = useIsFocused(); // ¿El usuario está en esta pestaña ahora mismo?
-  const [currentIndex, setCurrentIndex] = useState(0); // ¿Qué video específico está viendo?
+  const { height, width } = useWindowDimensions();
+  const REEL_HEIGHT = height - 65; 
+  
+  const isFocused = useIsFocused();
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Detecta cuál video está enfocado al hacer scroll
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems && viewableItems.length > 0) {
       setCurrentIndex(viewableItems[0].index);
@@ -27,43 +52,22 @@ export default function ReelsScreen() {
   }).current;
 
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50, // Se activa si al menos el 50% del video es visible
+    itemVisiblePercentThreshold: 50,
   }).current;
 
-  // 3. OBTENER DATOS DE LA BASE DE DATOS
   useEffect(() => {
-    const fetchReels = () => {
-      try {
-        const db = openDatabaseSync('flexi_v1.db');
-        const reels = db.getAllSync('SELECT * FROM reels');
-        
-        const reelsWithGarments = reels.map((reel: any) => {
-          const garments = db.getAllSync(`
-            SELECT garments.* FROM garments 
-            JOIN reel_garments ON garments.id = reel_garments.garment_id 
-            WHERE reel_garments.reel_id = ?
-          `, [reel.id]);
-
-          const formattedGarments = garments.map((g: any) => ({
-            id: g.id,
-            name: g.name,
-            imageUrl: g.image_url, 
-            category: g.category,
-            price: g.price
-          }));
-
-          return { ...reel, garments: formattedGarments };
-        });
-
-        setReelsData(reelsWithGarments);
-      } catch (error) {
-        console.error("Error leyendo la base de datos:", error);
-      }
+    const loadReels = () => {
+      const REELS_CLOUDINARY = [
+        generarReelAutomatico("reel_001", "Drop exclusivo. Listos para la calle. 🔥"),
+        generarReelAutomatico("reel_002", "Vibras oversized para el fin de semana. 🧊"),
+        generarReelAutomatico("reel_003", "Elevando el streetwear a otro nivel. 🚀")
+      ];
+      setReelsData(REELS_CLOUDINARY);
     };
-
-    fetchReels();
+    loadReels();
   }, []);
 
+  // Función 1: Va a la ventana IA independiente
   const handleTryOutfit = (garments: any[]) => {
     router.push({
       pathname: "/outfit-creator",
@@ -71,70 +75,84 @@ export default function ReelsScreen() {
     });
   };
 
-  // 4. RENDERIZAR CADA REEL INDIVIDUAL (Añadimos el "index")
+  // 🔥 Función 2 (NUEVA): Va a la pestaña del "+" (Asegúrate de que la ruta sea "/create" o la que uses para tu tab)
+  const handleMixOutfit = (garments: any[]) => {
+    router.push({
+      pathname: "/combine", 
+      params: { selectedOutfit: JSON.stringify(garments) }
+    });
+  };
+
   const renderItem = ({ item, index }: { item: any, index: number }) => {
-    // 🔥 LA MAGIA: Solo reproduce si la pestaña está enfocada Y si es el video actual
     const isPlaying = isFocused && currentIndex === index;
 
     return (
-      <View style={styles.reelContainer}>
-        {/* Reproductor de Video */}
+      <View style={[styles.reelContainer, { width: width, height: REEL_HEIGHT }]}>
         <Video
           source={{ uri: item.video_url }}
           style={styles.video}
-          shouldPlay={isPlaying} // <--- CONTROLADO DINÁMICAMENTE
+          shouldPlay={isPlaying}
           isLooping
           resizeMode={ResizeMode.COVER}
+          useNativeControls={false}
+          onError={(error) => console.log(`❌ Error en video ${item.id}:`, error)}
         />
 
-        <View style={styles.overlay} />
+        <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)', '#000']} style={styles.bottomGradientOverlay} />
 
-        {/* Botones Laterales */}
+        <View style={styles.topHeader}>
+          <Text style={styles.logoText}>Reels</Text>
+          <Ionicons name="camera-outline" size={28} color={COLORS.text} />
+        </View>
+
         <View style={styles.sideControls}>
           <TouchableOpacity style={styles.controlBtn}>
-            <Ionicons name="heart" size={32} color="#FFF" />
+            <Ionicons name="heart" size={34} color={COLORS.text} />
             <Text style={styles.controlText}>1.2k</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity style={styles.controlBtn}>
-            <Ionicons name="chatbubble-ellipses" size={30} color="#FFF" />
+            <Ionicons name="chatbubble-outline" size={32} color={COLORS.text} />
             <Text style={styles.controlText}>45</Text>
           </TouchableOpacity>
+          
           <TouchableOpacity style={styles.controlBtn}>
-            <Ionicons name="bookmark" size={30} color="#FFF" />
-            <Text style={styles.controlText}>Guardar</Text>
+            <Ionicons name="paper-plane-outline" size={32} color={COLORS.text} />
+            <Text style={styles.controlText}>Share</Text>
+          </TouchableOpacity>
+
+          {/* BOTÓN 1: IA Mágica */}
+          <TouchableOpacity style={styles.controlBtn} onPress={() => handleTryOutfit(item.garments)}>
+            <LinearGradient colors={COLORS.gradient} style={styles.sideAiGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+              <Ionicons name="color-wand" size={22} color="#FFF" />
+            </LinearGradient>
+            <Text style={[styles.controlText, { color: COLORS.accent, fontWeight: 'bold' }]}>Crear IA</Text>
+          </TouchableOpacity>
+
+          {/* 🔥 BOTÓN 2 NUEVO: LÁPIZ PARA EL SÍMBOLO "+" 🔥 */}
+          <TouchableOpacity style={styles.controlBtn} onPress={() => handleMixOutfit(item.garments)}>
+            <View style={styles.sideEditBtn}>
+              <Ionicons name="pencil-outline" size={22} color="#FFF" />
+            </View>
+            <Text style={styles.controlText}>Armar</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.controlBtn}>
+            <Ionicons name="ellipsis-horizontal" size={28} color={COLORS.text} />
           </TouchableOpacity>
         </View>
 
-        {/* Controles Inferiores */}
         <View style={styles.bottomControls}>
+          <View style={styles.userRow}>
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={16} color={COLORS.bg} />
+            </View>
+            <Text style={styles.usernameText}>flexi_official</Text>
+            <TouchableOpacity style={styles.followButton}>
+              <Text style={styles.followText}>Seguir</Text>
+            </TouchableOpacity>
+          </View>
           <Text style={styles.description}>{item.description}</Text>
-          <Text style={styles.garmentTitle}>PRENDAS EN ESTE VIDEO:</Text>
-          
-          <FlatList
-            horizontal
-            data={item.garments}
-            keyExtractor={(g) => g.id.toString()}
-            showsHorizontalScrollIndicator={false}
-            style={styles.garmentList}
-            renderItem={({ item: garment }) => (
-              <View style={styles.garmentCard}>
-                <Image source={{ uri: garment.imageUrl }} style={styles.garmentImage} />
-                <View style={styles.garmentInfo}>
-                  <Text style={styles.garmentName} numberOfLines={1}>{garment.name}</Text>
-                  <Text style={styles.garmentPrice}>S/ {garment.price}</Text>
-                </View>
-              </View>
-            )}
-          />
-
-          {/* EL BOTÓN MÁGICO (Actualizado a Verde) */}
-          <TouchableOpacity 
-            style={styles.tryOnButton}
-            onPress={() => handleTryOutfit(item.garments)}
-          >
-            <Ionicons name="shirt-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-            <Text style={styles.tryOnText}>PROBAR OUTFIT</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -147,44 +165,46 @@ export default function ReelsScreen() {
           data={reelsData}
           renderItem={renderItem}
           keyExtractor={(item) => item.id.toString()}
-          pagingEnabled
           showsVerticalScrollIndicator={false}
           snapToInterval={REEL_HEIGHT}
           snapToAlignment="start"
           decelerationRate="fast"
-          // 🔥 DETECTAMOS EL SCROLL AQUÍ
+          disableIntervalMomentum={true}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
         />
       ) : (
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Cargando Colección...</Text>
+          <Ionicons name="shirt-outline" size={40} color={COLORS.accent} style={{marginBottom: 10}} />
+          <Text style={styles.loadingText}>Cargando feed...</Text>
         </View>
       )}
     </View>
   );
 }
 
-// ESTILOS ACTUALIZADOS A LA PALETA "DARK URBAN GREEN"
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#101010' },
-  loadingText: { color: '#4CAF50', fontSize: 16, fontWeight: 'bold', letterSpacing: 2 },
-  reelContainer: { width: width, height: REEL_HEIGHT, position: 'relative' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.bg },
+  loadingText: { color: COLORS.textMuted, fontSize: 16, fontWeight: 'bold', letterSpacing: 1 },
+  reelContainer: { position: 'relative' },
   video: { width: '100%', height: '100%' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
-  sideControls: { position: 'absolute', right: 15, bottom: 150, alignItems: 'center' },
+  bottomGradientOverlay: { position: 'absolute', bottom: 0, width: '100%', height: '50%' },
+  topHeader: { position: 'absolute', top: 50, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  logoText: { color: COLORS.text, fontSize: 24, fontWeight: 'bold', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
+  sideControls: { position: 'absolute', right: 12, bottom: 110, alignItems: 'center' },
   controlBtn: { alignItems: 'center', marginBottom: 20 },
-  controlText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', marginTop: 5 },
-  bottomControls: { position: 'absolute', bottom: 20, left: 15, right: 70 },
-  description: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 15, textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
-  garmentTitle: { color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: 'bold', letterSpacing: 1, marginBottom: 8 },
-  garmentList: { marginBottom: 15 },
-  garmentCard: { flexDirection: 'row', backgroundColor: 'rgba(30,30,30,0.8)', borderRadius: 12, padding: 6, marginRight: 10, alignItems: 'center', width: 160, borderWidth: 1, borderColor: '#333' },
-  garmentImage: { width: 40, height: 40, borderRadius: 8, marginRight: 8 },
-  garmentInfo: { flex: 1 },
-  garmentName: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-  garmentPrice: { color: '#4CAF50', fontSize: 11, fontWeight: '900' },
-  tryOnButton: { flexDirection: 'row', backgroundColor: '#2E7D32', paddingVertical: 14, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#4CAF50', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 5, elevation: 6 },
-  tryOnText: { color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 2 }
+  controlText: { color: COLORS.text, fontSize: 12, fontWeight: '600', marginTop: 4, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  
+  sideAiGradient: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 2, elevation: 5, shadowColor: COLORS.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 10 },
+  // 🔥 ESTILO DEL NUEVO BOTÓN LÁPIZ
+  sideEditBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+
+  bottomControls: { position: 'absolute', bottom: 25, left: 15, right: 75 },
+  userRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  avatarPlaceholder: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.text, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  usernameText: { color: COLORS.text, fontWeight: 'bold', fontSize: 15, marginRight: 10, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
+  followButton: { borderWidth: 1, borderColor: COLORS.text, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  followText: { color: COLORS.text, fontSize: 11, fontWeight: 'bold' },
+  description: { color: COLORS.text, fontSize: 14, fontWeight: '400', marginBottom: 15, lineHeight: 20, textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
 });
