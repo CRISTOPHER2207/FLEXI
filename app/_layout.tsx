@@ -1,23 +1,43 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import * as Linking from 'expo-linking';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { openDatabaseSync } from 'expo-sqlite';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
-// 🔥 1. IMPORTAMOS EL INYECTOR DE LA BASE DE DATOS
-import { setupDatabase } from '../src/db/setup';
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary
-} from 'expo-router';
+// 🔥 IMPORTACIONES PARA AWS AMPLIFY
+import { Amplify } from 'aws-amplify';
+import 'react-native-get-random-values';
+
+const redirectUri = Linking.createURL('/');
+console.log("👉 URL DE REDIRECCIÓN REAL:", redirectUri);
+
+// 🔥 CONFIGURACIÓN DE AWS COGNITO CON GOOGLE OAUTH
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId: 'us-east-1_Y6T9GJioU', 
+      userPoolClientId: '7u099tbugf5rcbojodvrt44trh', 
+      loginWith: {
+        oauth: {
+          domain: 'us-east-1y6t9gjiou.auth.us-east-1.amazoncognito.com', 
+          scopes: ['email', 'profile', 'openid'],
+          redirectSignIn: [redirectUri, 'flexi://'],
+          redirectSignOut: [redirectUri, 'flexi://'],
+          responseType: 'code'
+        }
+      }
+    }
+  }
+});
+
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: '(tabs)',
+  initialRouteName: '(auth)', 
 };
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -28,31 +48,10 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
 
-  // 🔥 2. INICIALIZAMOS LA BASE DE DATOS Y CARGAMOS CLOUDINARY
-  useEffect(() => {
-    const setupDB = () => {
-      try {
-        const db = openDatabaseSync('flexi_v1.db');
-        db.execSync('PRAGMA foreign_keys = ON;');
-        
-        // Ejecutamos la inyección de tablas y prendas
-        setupDatabase(db);
-        
-        console.log("💾 Database: Motor SQLite local iniciado y datos inyectados");
-      } catch (e) {
-        console.error("❌ Error al arrancar la base de datos:", e);
-      }
-    };
-
-    setupDB();
-  }, []);
-
-  // Ocultamos el Splash Screen solo cuando las fuentes hayan cargado
   useEffect(() => {
     if (loaded) {
       SplashScreen.hideAsync();
@@ -64,15 +63,19 @@ export default function RootLayout() {
   return <RootLayoutNav />;
 }
 
-// 🔥 3. EL COMPONENTE DE NAVEGACIÓN (Lo que faltaba)
+// 🔥 EL COMPONENTE DE NAVEGACIÓN GLOBAL
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
+  // 🧹 Hemos limpiado el simulador de sesión que forzaba el redireccionamiento falso.
+  // Ahora la navegación fluye naturalmente y confía en el código de tu login.tsx.
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* Declaramos las dos zonas de Flexi y ocultamos las cabeceras */}
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );
